@@ -1,0 +1,5 @@
+.vscode
+main
+maind
+*.o
+ref.c
