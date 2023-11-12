@@ -38,7 +38,7 @@ unsigned char *str_to_hex(const char *buf, size_t *len)
 
     if ((*len & 1) != 0)
     {
-        printf("str_to_hex: len should be even");
+        printf("str_to_hex: len should be even\n");
         return NULL;
     }
 
