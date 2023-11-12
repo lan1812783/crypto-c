@@ -2,4 +2,4 @@ Release:
     make clean && make && echo && echo ----- && echo && ./main
 
 Debug:
-    make clean && make CONF=Debug && echo && echo ----- && echo && valgrind --leak-check=full --track-origins=yes ./maind
+    make clean && make CONF=Debug CFLAGS=-DREAD_PUB_KEY=0 && echo && echo ----- && echo && valgrind --leak-check=full --track-origins=yes ./maind

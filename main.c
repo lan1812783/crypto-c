@@ -6,7 +6,15 @@
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 
+#ifndef READ_PUB_KEY
 #define READ_PUB_KEY 1
+#endif
+
+void handle_errors()
+{
+    int e = ERR_get_error();
+    printf("%s\n", ERR_error_string(e, NULL));
+}
 
 void print_hex_with_delim(const unsigned char *buf, size_t len, char delim[])
 {
@@ -27,9 +35,19 @@ void print_hex(const unsigned char *buf, size_t len)
 
 unsigned char *str_to_hex(const char *buf, size_t *len)
 {
-    assert((*len & 1) == 0);
+
+    if ((*len & 1) != 0)
+    {
+        printf("str_to_hex: len should be even");
+        return NULL;
+    }
 
     unsigned char *hex = OPENSSL_malloc(*len / 2);
+    if (hex == NULL)
+    {
+        handle_errors();
+        return NULL;
+    }
 
     size_t i;
     unsigned int uchr;
@@ -43,18 +61,13 @@ unsigned char *str_to_hex(const char *buf, size_t *len)
     return hex;
 }
 
-void handle_errors()
-{
-    int e = ERR_get_error();
-    printf("%s\n", ERR_error_string(e, NULL));
-}
-
 /*
  * Act as a DH/ECDH server
  */
 void dh()
 {
     // --- Variables ---
+    unsigned char *alice_pub_key_buf = NULL;
     EVP_PKEY *alice_pub_key = NULL;
     EVP_PKEY *bob_key_pair = NULL;
     EVP_PKEY_CTX *bob_dh_ctx = NULL;
@@ -70,8 +83,12 @@ void dh()
     scanf("%s", alice_pub_key_arr);
 #endif
     int alice_pub_key_len = strlen(alice_pub_key_arr);
-    unsigned char *alice_pub_key_buf = str_to_hex(alice_pub_key_arr,
-                                                  (size_t *)&alice_pub_key_len);
+    alice_pub_key_buf = str_to_hex(alice_pub_key_arr,
+                                   (size_t *)&alice_pub_key_len);
+    if (alice_pub_key_buf == NULL)
+    {
+        goto cleanup;
+    }
     // Print Alice's public key
 #if READ_PUB_KEY == 0
     printf("Alice's public key: ");
@@ -81,11 +98,9 @@ void dh()
     if (d2i_PUBKEY(&alice_pub_key, (const unsigned char **)&alice_pub_key_buf,
                    alice_pub_key_len) == NULL)
     {
-        OPENSSL_free(alice_pub_key_buf);
         handle_errors();
         goto cleanup;
     }
-    OPENSSL_free(alice_pub_key_buf); // Valgrind reports: Invalid free() / delete / delete[] / realloc() ?????
 
     // --- Create Bob's Diffie Hellman context ---
     bob_key_pair = EVP_PKEY_new();
@@ -115,7 +130,7 @@ void dh()
     BIO_free(bio);
     // Print Bob's public key
     printf("Bob's public key: ");
-    print_hex(bio_mem->data, bio_mem->length);
+    print_hex((unsigned char *)bio_mem->data, bio_mem->length);
     BUF_MEM_free(bio_mem);
 
     // --- Bob creates shared secret ---
@@ -146,6 +161,7 @@ void dh()
 
     // --- Cleanup ---
 cleanup:
+    // OPENSSL_free(alice_pub_key_buf); // no free cuz alice_pub_key has taken the ownership, but valgrind reports 'Invalid free() / delete / delete[] / realloc()'
     EVP_PKEY_free(alice_pub_key);
     EVP_PKEY_free(bob_key_pair);
     EVP_PKEY_CTX_free(bob_dh_ctx);

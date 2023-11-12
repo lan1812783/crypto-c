@@ -1,5 +1,5 @@
 ifeq ($(CONF),Debug)
-	CFLAGS = $(CONF:) -g
+	override CFLAGS += -g
 	DEBUG_POSTFIX = d
 endif
 
