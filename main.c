@@ -33,7 +33,7 @@ void print_hex(const unsigned char *buf, size_t len)
     print_hex_with_delim(buf, len, "");
 }
 
-unsigned char *str_to_hex(const char *buf, size_t *len)
+void str_to_hex(const char *buf, size_t *len, unsigned char **hex)
 {
 
     if ((*len & 1) != 0)
@@ -42,8 +42,8 @@ unsigned char *str_to_hex(const char *buf, size_t *len)
         return NULL;
     }
 
-    unsigned char *hex = OPENSSL_malloc(*len / 2);
-    if (hex == NULL)
+    *hex = OPENSSL_malloc(*len / 2);
+    if (*hex == NULL)
     {
         handle_errors();
         return NULL;
@@ -54,11 +54,10 @@ unsigned char *str_to_hex(const char *buf, size_t *len)
     for (i = 0; i < *len; i += 2)
     {
         sscanf(buf + i, "%02X", &uchr);
-        hex[i / 2] = uchr;
+        (*hex)[i / 2] = uchr;
     }
 
     *len = *len / 2;
-    return hex;
 }
 
 /*
@@ -68,6 +67,7 @@ void dh()
 {
     // --- Variables ---
     unsigned char *alice_pub_key_buf = NULL;
+    unsigned char *alice_pub_key_buf_tmp = NULL;
     EVP_PKEY *alice_pub_key = NULL;
     EVP_PKEY *bob_key_pair = NULL;
     EVP_PKEY_CTX *bob_dh_ctx = NULL;
@@ -82,9 +82,8 @@ void dh()
     char alice_pub_key_arr[4069];
     scanf("%s", alice_pub_key_arr);
 #endif
-    int alice_pub_key_len = strlen(alice_pub_key_arr);
-    alice_pub_key_buf = str_to_hex(alice_pub_key_arr,
-                                   (size_t *)&alice_pub_key_len);
+    size_t alice_pub_key_len = strlen(alice_pub_key_arr);
+    str_to_hex(alice_pub_key_arr, &alice_pub_key_len, &alice_pub_key_buf);
     if (alice_pub_key_buf == NULL)
     {
         goto cleanup;
@@ -94,8 +93,9 @@ void dh()
     printf("Alice's public key: ");
     print_hex(alice_pub_key_buf, alice_pub_key_len);
 #endif
+    alice_pub_key_buf_tmp = alice_pub_key_buf;
     // Convert to EVP_PKEY representation
-    if (d2i_PUBKEY(&alice_pub_key, (const unsigned char **)&alice_pub_key_buf,
+    if (d2i_PUBKEY(&alice_pub_key, (const unsigned char **)&alice_pub_key_buf_tmp,
                    alice_pub_key_len) == NULL)
     {
         handle_errors();
@@ -161,7 +161,7 @@ void dh()
 
     // --- Cleanup ---
 cleanup:
-    // OPENSSL_free(alice_pub_key_buf); // no free cuz alice_pub_key has taken the ownership, but valgrind reports 'Invalid free() / delete / delete[] / realloc()'
+    OPENSSL_free(alice_pub_key_buf);
     EVP_PKEY_free(alice_pub_key);
     EVP_PKEY_free(bob_key_pair);
     EVP_PKEY_CTX_free(bob_dh_ctx);
