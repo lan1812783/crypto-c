@@ -3,3 +3,6 @@ main
 maind
 *.o
 ref.c
+build
+.cache
+compile_commands.json
