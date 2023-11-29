@@ -3,7 +3,10 @@
 
 #include <stddef.h>
 
-#define SAFE_DEL(p) if (p != NULL) free(p); p = NULL
+#define SAFE_DEL(p) \
+    if (p != NULL)  \
+        free(p);    \
+    p = NULL
 
 void print_hex_with_delim(const unsigned char *buf, size_t len, char delim[]);
 void print_hex(const unsigned char *buf, size_t len);

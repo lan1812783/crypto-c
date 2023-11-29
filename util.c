@@ -32,7 +32,6 @@ void str_to_hex(const char *buf, size_t *len, unsigned char **hex)
     *hex = malloc(*len / 2);
     if (*hex == NULL)
     {
-        handle_errors();
         return;
     }
 
