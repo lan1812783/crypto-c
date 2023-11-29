@@ -1,8 +1,4 @@
-.vscode
-main
-maind
-*.o
-ref.c
-build
 .cache
+.vscode
+build
 compile_commands.json
