@@ -117,7 +117,6 @@ void dh_generate_key_pair(EVP_PKEY **key_pair, enum DHKeySize key_size)
     if (1 != EVP_PKEY_keygen(dh_ctx, key_pair))
     {
         handle_errors();
-        goto cleanup;
     }
 
 cleanup:
