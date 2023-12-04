@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package crypto;
+
+service Crypto {
+    rpc OpenConnection (OpenConnectionRequest) returns (OpenConnectionResponse);
+}
+
+enum CipherSuite {
+  DH = 0;
+  ECDH = 1;
+}
+
+message HandshakeData {
+    CipherSuite cipherSuite = 1;
+    bytes data = 2;
+}
+
+message OpenConnectionRequest {
+    repeated HandshakeData handshakeDataList = 1;
+}
+
+message OpenConnectionResponse {
+    HandshakeData handshakeData = 1;
+}
