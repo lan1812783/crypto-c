@@ -12,11 +12,11 @@ class Client {
   Client(std::shared_ptr<grpc::Channel> channel)
       : stub_(crypto::Crypto::NewStub(channel)) {}
 
-  void do_handshake() {
-    EVP_PKEY *key_pair = NULL;
+  void do_handshake(KeyExAlgo algo) {
+    EVP_PKEY *client_key_pair = NULL;
     //
-    size_t pub_key_len = 0;
-    unsigned char *pub_key = NULL;
+    size_t client_pub_key_len = 0;
+    unsigned char *client_pub_key = NULL;
     //
     EVP_PKEY *server_pub_key = NULL;
     //
@@ -25,26 +25,34 @@ class Client {
 
     // -----
 
-    // ecdh_generate_key_pair(&key_pair, NID_X9_62_prime256v1);
-    dh_generate_key_pair(&key_pair, DH_KEY_SIZE_2048_256);
-    if (key_pair == NULL) {
+    switch (algo) {
+      case KeyExAlgo::DH_KEY_EX:
+        dh_generate_key_pair(&client_key_pair, DH_KEY_SIZE_2048_256);
+        break;
+      case KeyExAlgo::ECDH_KEY_EX:
+        ecdh_generate_key_pair(&client_key_pair, NID_X9_62_prime256v1);
+        break;
+      default:
+        printf("Invalid handshake algorithm");
+    }
+    if (client_key_pair == NULL) {
       goto cleanup;
     }
     // Extract client's raw public key
-    extract_public_key(key_pair, &pub_key, &pub_key_len);
-    if (pub_key == NULL) {
+    extract_public_key(client_key_pair, &client_pub_key, &client_pub_key_len);
+    if (client_pub_key == NULL) {
       goto cleanup;
     }
     printf("Client's public key: ");
-    print_hex(pub_key, pub_key_len);
+    print_hex(client_pub_key, client_pub_key_len);
 
     // RPC call
-    send_handshake_data(pub_key, pub_key_len, &server_pub_key);
+    send_handshake_data(client_pub_key, client_pub_key_len, &server_pub_key);
     if (server_pub_key == NULL) {
       goto cleanup;
     }
     // Client generates the shared secret
-    dh_generate_shared_secret(key_pair, server_pub_key, &shared_secret,
+    dh_generate_shared_secret(client_key_pair, server_pub_key, &shared_secret,
                               &shared_secret_len);
     if (shared_secret == NULL) {
       goto cleanup;
@@ -56,17 +64,18 @@ class Client {
     OPENSSL_free(shared_secret);
     EVP_PKEY_free(server_pub_key);
     //
-    SAFE_DEL(pub_key);
-    EVP_PKEY_free(key_pair);
+    SAFE_DEL(client_pub_key);
+    EVP_PKEY_free(client_key_pair);
   }
 
-  void send_handshake_data(unsigned char *pub_key, size_t pub_key_len,
+  void send_handshake_data(unsigned char *client_pub_key,
+                           size_t client_pub_key_len,
                            EVP_PKEY **server_pub_key) {
     grpc::ClientContext context;
     crypto::OpenConnectionRequest request;
     crypto::HandshakeData *dh_handshake_data = request.add_handshakedatalist();
     dh_handshake_data->set_ciphersuite(crypto::CipherSuite::DH);
-    dh_handshake_data->set_data(pub_key, pub_key_len);
+    dh_handshake_data->set_data(client_pub_key, client_pub_key_len);
     crypto::OpenConnectionResponse response;
     grpc::Status status = stub_->OpenConnection(&context, request, &response);
 
@@ -77,13 +86,18 @@ class Client {
     }
 
     crypto::HandshakeData server_handshake_data = response.handshakedata();
-    std::cout << server_handshake_data.ciphersuite() << '\n';
+    get_server_pub_key(&server_handshake_data, server_pub_key);
+  }
 
-    const std::string server_data_str = server_handshake_data.data();
+  void get_server_pub_key(crypto::HandshakeData *server_handshake_data,
+                          EVP_PKEY **server_pub_key) {
+    // TODO: verify server_handshake_data.ciphersuite()
+
+    const std::string server_data_str = server_handshake_data->data();
+    size_t server_data_len = server_data_str.length();
     const unsigned char *server_data =
         reinterpret_cast<const unsigned char *>(server_data_str.c_str());
-
-    dh_parse_public_key(server_pub_key, server_data, server_data_str.length());
+    dh_parse_public_key(server_pub_key, server_data, server_data_len);
   }
 
  private:
@@ -93,5 +107,6 @@ class Client {
 int main(int argc, char **argv) {
   Client client(grpc::CreateChannel("localhost:50051",
                                     grpc::InsecureChannelCredentials()));
-  client.do_handshake();
+  client.do_handshake(KeyExAlgo::DH_KEY_EX);
+  client.do_handshake(KeyExAlgo::ECDH_KEY_EX);
 }

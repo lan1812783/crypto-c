@@ -12,7 +12,7 @@ set(CMAKE_DEBUG_POSTFIX d)
 # E.g. cmake \
 #     -DgRPC_INSTALL=ON
 #     -DgRPC_BUILD_TESTS=OFF
-#     -DCMAKE_INSTALL_PREFIX=/home/lan/.local
+#     -DCMAKE_INSTALL_PREFIX=~/.local
 #     -DgRPC_SSL_PROVIDER=package
 #     ../..
 

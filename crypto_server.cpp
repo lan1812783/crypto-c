@@ -44,7 +44,7 @@ class CryptoServiceImpl final : public crypto::Crypto::Service {
                                  size_t client_data_len,
                                  crypto::HandshakeData *handshakeData) {
     size_t server_handshake_data_len = 0;
-    unsigned char *server_handshake_data = NULL;  // TODO: free or not?
+    unsigned char *server_handshake_data = NULL;
 
     switch (client_cipher_suite) {
       case crypto::CipherSuite::DH:
