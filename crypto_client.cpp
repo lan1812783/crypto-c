@@ -5,6 +5,7 @@
 
 #include "dh.h"
 #include "protos/crypto.grpc.pb.h"
+#include "protos/crypto.pb.h"
 #include "util.h"
 
 class Client {
@@ -12,7 +13,7 @@ class Client {
   Client(std::shared_ptr<grpc::Channel> channel)
       : stub_(crypto::Crypto::NewStub(channel)) {}
 
-  void do_handshake(KeyExAlgo algo) {
+  void do_handshake(crypto::CipherSuite cipherSuite) {
     EVP_PKEY *client_key_pair = NULL;
     //
     size_t client_pub_key_len = 0;
@@ -25,11 +26,11 @@ class Client {
 
     // -----
 
-    switch (algo) {
-      case KeyExAlgo::DH_KEY_EX:
+    switch (cipherSuite) {
+      case crypto::CipherSuite::DH:
         dh_generate_key_pair(&client_key_pair, DH_KEY_SIZE_2048_256);
         break;
-      case KeyExAlgo::ECDH_KEY_EX:
+      case crypto::CipherSuite::ECDH:
         ecdh_generate_key_pair(&client_key_pair, NID_X9_62_prime256v1);
         break;
       default:
@@ -47,7 +48,8 @@ class Client {
     print_hex(client_pub_key, client_pub_key_len);
 
     // RPC call
-    send_handshake_data(client_pub_key, client_pub_key_len, &server_pub_key);
+    send_handshake_data(cipherSuite, client_pub_key, client_pub_key_len,
+        &server_pub_key);
     if (server_pub_key == NULL) {
       goto cleanup;
     }
@@ -68,13 +70,14 @@ class Client {
     EVP_PKEY_free(client_key_pair);
   }
 
-  void send_handshake_data(unsigned char *client_pub_key,
+  void send_handshake_data(crypto::CipherSuite cipherSuite,
+                           unsigned char *client_pub_key,
                            size_t client_pub_key_len,
                            EVP_PKEY **server_pub_key) {
     grpc::ClientContext context;
     crypto::OpenConnectionRequest request;
     crypto::HandshakeData *dh_handshake_data = request.add_handshakedatalist();
-    dh_handshake_data->set_ciphersuite(crypto::CipherSuite::DH);
+    dh_handshake_data->set_ciphersuite(cipherSuite);
     dh_handshake_data->set_data(client_pub_key, client_pub_key_len);
     crypto::OpenConnectionResponse response;
     grpc::Status status = stub_->OpenConnection(&context, request, &response);
@@ -107,6 +110,6 @@ class Client {
 int main(int argc, char **argv) {
   Client client(grpc::CreateChannel("localhost:50051",
                                     grpc::InsecureChannelCredentials()));
-  client.do_handshake(KeyExAlgo::DH_KEY_EX);
-  client.do_handshake(KeyExAlgo::ECDH_KEY_EX);
+  client.do_handshake(crypto::CipherSuite::DH);
+  client.do_handshake(crypto::CipherSuite::ECDH);
 }

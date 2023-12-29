@@ -6,6 +6,11 @@
 #include "protos/crypto.grpc.pb.h"
 #include "util.h"
 
+namespace Crypto::Status {
+  const grpc::Status INVALID_ARGUMENT =
+      grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Invalid argument");
+}
+
 class CryptoServiceImpl final : public crypto::Crypto::Service {
  public:
   ::grpc::Status OpenConnection(
@@ -21,16 +26,17 @@ class CryptoServiceImpl final : public crypto::Crypto::Service {
       const unsigned char *client_data =
           reinterpret_cast<const unsigned char *>(client_data_str.c_str());
 
-      if (is_supported(client_cipher_suite)) {
-        crypto::HandshakeData *handshakeData =
-            response->mutable_handshakedata();
-        get_server_handshake_data(client_cipher_suite, client_data,
-                                  client_data_str.length(), handshakeData);
-
-        break;
+      if (!is_supported(client_cipher_suite)) {
+        continue;
       }
+
+      crypto::HandshakeData *handshakeData =
+        response->mutable_handshakedata();
+      get_server_handshake_data(client_cipher_suite, client_data,
+          client_data_str.length(), handshakeData);
+      return grpc::Status::OK;
     }
-    return grpc::Status::OK;
+    return Crypto::Status::INVALID_ARGUMENT;
   }
 
  private:

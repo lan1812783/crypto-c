@@ -4,8 +4,6 @@
 #include <openssl/evp.h>
 #include <stddef.h>
 
-enum KeyExAlgo { DH_KEY_EX, ECDH_KEY_EX };
-
 enum DHKeySize {
   DH_KEY_SIZE_1024_160,
   DH_KEY_SIZE_2048_224,
